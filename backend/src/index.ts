@@ -30,14 +30,27 @@ app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ─── GET /api/status ───────────────────────────────────────────────────
-// Reports health of both microservices (Node ML + Java AST backend).
+async function isOllamaAlive(): Promise<boolean> {
+    try {
+        const res = await fetch('http://127.0.0.1:11434/api/tags');
+        return res.ok;
+    } catch {
+        try {
+            const res = await fetch('http://localhost:11434/api/tags');
+            return res.ok;
+        } catch {
+            return false;
+        }
+    }
+}
 
 app.get('/api/status', async (_req, res) => {
     const javaAlive = await isJavaBackendAlive();
+    const ollamaAlive = await isOllamaAlive();
     res.json({
         nodeBackend:  { status: 'ok',                    port: process.env.PORT ?? 3001 },
         javaBackend:  { status: javaAlive ? 'ok' : 'offline', url: process.env.JAVA_BACKEND_URL ?? `http://${process.env.JAVA_BACKEND_HOST ?? 'localhost'}:${process.env.JAVA_BACKEND_PORT ?? 8080}` },
+        ollama:       { status: ollamaAlive ? 'ok' : 'offline' },
         pipelineRunning: isPipelineRunning(),
         timestamp: new Date().toISOString(),
     });
