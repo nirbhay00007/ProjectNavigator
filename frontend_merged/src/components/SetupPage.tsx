@@ -14,6 +14,8 @@ const MODELS = [
   { id: 'nomic-embed-text', icon: '🔢', title: 'nomic-embed-text', sub: 'Vector Embeddings',    size: '274 MB', cmd: 'ollama pull nomic-embed-text',  color: '#0ea5e9' },
 ];
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 const AGENTS: Record<Agent, { icon: string; label: string; desc: string; file: string; config: string; tip: string }> = {
   claude: {
     icon: '🧠', label: 'Claude Desktop', desc: 'Point Claude to the MCP server. A 🔧 tool icon confirms connection.',
@@ -21,7 +23,7 @@ const AGENTS: Record<Agent, { icon: string; label: string; desc: string; file: s
     config: `{
   "mcpServers": {
     "dev-clash-memory": {
-      "url": "http://localhost:3001/api/mcp"
+      "url": "API_BASE_URL/api/mcp"
     }
   }
 }`,
@@ -33,7 +35,7 @@ const AGENTS: Record<Agent, { icon: string; label: string; desc: string; file: s
     config: `{
   "mcp.servers": [{
     "name": "dev-clash-memory",
-    "url": "http://localhost:3001/api/mcp"
+    "url": "API_BASE_URL/api/mcp"
   }]
 }`,
     tip: 'Type @dev-clash in chat to invoke codebase memory.',
@@ -44,7 +46,7 @@ const AGENTS: Record<Agent, { icon: string; label: string; desc: string; file: s
     config: `{
   "servers": {
     "dev-clash": {
-      "url": "http://localhost:3001/api/mcp"
+      "url": "API_BASE_URL/api/mcp"
     }
   }
 }`,
@@ -259,8 +261,8 @@ export default function SetupPage() {
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--gray-500)', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{ag.file}</div>
               </div>
               <div style={{ position: 'relative', background: '#0d1117', border: '1px solid #21262d', borderRadius: 10, padding: '12px 14px' }}>
-                <pre style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: '#79c0ff', margin: 0, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{ag.config}</pre>
-                <button className="copy-btn" onClick={() => copy(`agent-${agent}`, ag.config)}>{copied===`agent-${agent}`?'✓ Copied':'Copy'}</button>
+                <pre style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: '#79c0ff', margin: 0, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{ag.config.replace(/API_BASE_URL/g, API_BASE)}</pre>
+                <button className="copy-btn" onClick={() => copy(`agent-${agent}`, ag.config.replace(/API_BASE_URL/g, API_BASE))}>{copied===`agent-${agent}`?'✓ Copied':'Copy'}</button>
               </div>
             </div>
             <div style={{ padding: '0 22px 22px' }}>
@@ -296,9 +298,9 @@ export default function SetupPage() {
             <div style={{ padding: '0 22px', marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>HTTP Bridge (no MCP needed)</div>
               <div style={{ position: 'relative', background: '#0d1117', border: '1px solid #21262d', borderRadius: 9, padding: '10px 12px' }}>
-                <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#79c0ff', display: 'block', marginBottom: 4 }}>POST http://localhost:3001/api/query</code>
+                <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#79c0ff', display: 'block', marginBottom: 4 }}>POST {API_BASE}/api/query</code>
                 <code style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#8b949e', display: 'block' }}>{'{ "query": "Where is auth handled?" }'}</code>
-                <button className="copy-btn" onClick={() => copy('http', 'POST http://localhost:3001/api/query')}>{copied==='http'?'✓':'Copy'}</button>
+                <button className="copy-btn" onClick={() => copy('http', `POST ${API_BASE}/api/query`)}>{copied==='http'?'✓':'Copy'}</button>
               </div>
             </div>
             {/* Token savings bar */}

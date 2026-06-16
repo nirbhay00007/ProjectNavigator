@@ -43,7 +43,7 @@ interface RepoEntry {
 
 type AppTab    = 'home' | 'repos' | 'graph' | 'query' | 'setup';
 
-const API = 'http://localhost:3001';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const REPO_COLORS = ['#f97316','#0ea5e9','#22c55e','#7c3aed','#ec4899','#d97706'];
 let colorIdx = 0;
 const nextColor = () => REPO_COLORS[colorIdx++ % REPO_COLORS.length];

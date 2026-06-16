@@ -37,7 +37,7 @@ app.get('/api/status', async (_req, res) => {
     const javaAlive = await isJavaBackendAlive();
     res.json({
         nodeBackend:  { status: 'ok',                    port: process.env.PORT ?? 3001 },
-        javaBackend:  { status: javaAlive ? 'ok' : 'offline', port: process.env.JAVA_BACKEND_PORT ?? 8080 },
+        javaBackend:  { status: javaAlive ? 'ok' : 'offline', url: process.env.JAVA_BACKEND_URL ?? `http://${process.env.JAVA_BACKEND_HOST ?? 'localhost'}:${process.env.JAVA_BACKEND_PORT ?? 8080}` },
         pipelineRunning: isPipelineRunning(),
         timestamp: new Date().toISOString(),
     });

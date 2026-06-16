@@ -20,22 +20,21 @@ export interface JavaGraphResponse {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const JAVA_BACKEND_HOST = process.env.JAVA_BACKEND_HOST ?? 'localhost';
-const JAVA_BACKEND_PORT = Number(process.env.JAVA_BACKEND_PORT ?? 8080);
+const JAVA_BACKEND_URL = process.env.JAVA_BACKEND_URL ?? `http://${process.env.JAVA_BACKEND_HOST ?? 'localhost'}:${process.env.JAVA_BACKEND_PORT ?? 8080}`;
 const JAVA_BACKEND_TIMEOUT_MS = 120_000; // 2 minutes — cloning can be slow
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 
 export async function isJavaBackendAlive(): Promise<boolean> {
-    return new Promise(resolve => {
-        const req = http.request(
-            { hostname: JAVA_BACKEND_HOST, port: JAVA_BACKEND_PORT, path: '/repo/health', method: 'GET', timeout: 3000 },
-            res => resolve(res.statusCode === 200)
-        );
-        req.on('error', () => resolve(false));
-        req.on('timeout', () => { req.destroy(); resolve(false); });
-        req.end();
-    });
+    try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(`${JAVA_BACKEND_URL}/repo/health`, { signal: controller.signal });
+        clearTimeout(id);
+        return res.ok;
+    } catch {
+        return false;
+    }
 }
 
 // ─── Core Client ──────────────────────────────────────────────────────────────
@@ -47,14 +46,14 @@ export async function isJavaBackendAlive(): Promise<boolean> {
  * 3. Return class-level dependency graph (nodes + edges).
  *
  * The returned `clonedPath` can then be passed directly into our
- * Ollama summarisation pipeline as if it were a local repo.
+ * Ollama/Gemini summarisation pipeline as if it were a local repo.
  */
 export async function cloneAndExtractJavaGraph(repoUrlOrPath: string, localMode = false): Promise<JavaGraphResponse> {
     const alive = await isJavaBackendAlive();
     if (!alive) {
         throw new Error(
-            `Java backend is not reachable at ${JAVA_BACKEND_HOST}:${JAVA_BACKEND_PORT}. ` +
-            `Start it with: cd java-backend && mvnw.cmd spring-boot:run`
+            `Java backend is not reachable at ${JAVA_BACKEND_URL}. ` +
+            `Ensure the service is running or check your JAVA_BACKEND_URL environment variable.`
         );
     }
 
@@ -63,36 +62,28 @@ export async function cloneAndExtractJavaGraph(repoUrlOrPath: string, localMode 
         ? `/repo/local?path=${encoded}`   // Already-cloned local directory
         : `/repo/graph?url=${encoded}`;   // GitHub URL — Spring Boot clones it
 
-    return new Promise((resolve, reject) => {
-        const req = http.request(
-            {
-                hostname: JAVA_BACKEND_HOST,
-                port:     JAVA_BACKEND_PORT,
-                path:     apiPath,
-                method:   'POST',
-                timeout:  JAVA_BACKEND_TIMEOUT_MS,
-            },
-            res => {
-                let data = '';
-                res.on('data', chunk => (data += chunk));
-                res.on('end', () => {
-                    if (res.statusCode !== 200) {
-                        return reject(new Error(`Java backend returned HTTP ${res.statusCode}: ${data}`));
-                    }
-                    try {
-                        const json = JSON.parse(data) as JavaGraphResponse;
-                        resolve(json);
-                    } catch {
-                        reject(new Error(`Java backend returned non-JSON: ${data.slice(0, 200)}`));
-                    }
-                });
-            }
-        );
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), JAVA_BACKEND_TIMEOUT_MS);
 
-        req.on('error',   err => reject(new Error(`Java backend connection error: ${err.message}`)));
-        req.on('timeout', ()  => { req.destroy(); reject(new Error(`Java backend timed out after ${JAVA_BACKEND_TIMEOUT_MS / 1000}s`)); });
-        req.end();
-    });
+    try {
+        const res = await fetch(`${JAVA_BACKEND_URL}${apiPath}`, {
+            method: 'POST',
+            signal: controller.signal
+        });
+        clearTimeout(id);
+
+        if (!res.ok) {
+            const data = await res.text();
+            throw new Error(`Java backend returned HTTP ${res.status}: ${data}`);
+        }
+
+        return await res.json() as JavaGraphResponse;
+    } catch (err: any) {
+        if (err.name === 'AbortError') {
+            throw new Error(`Java backend timed out after ${JAVA_BACKEND_TIMEOUT_MS / 1000}s`);
+        }
+        throw new Error(`Java backend connection error: ${err.message}`);
+    }
 }
 
 // ─── Adapter: Java graph → our GraphNode format ────────────────────────────────
