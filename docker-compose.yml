@@ -1,0 +1,158 @@
+# ─── DevClash AI — Docker Compose Orchestration ───────────────────────────────
+#
+# Services:
+#   java-backend   Port 8080  — Spring Boot Java AST parser
+#   node-backend   Port 3001  — Node.js Express ML gateway + MCP server
+#   frontend       Port 5173  — Vite React UI
+#   ollama         Port 11434 — Local LLM server (optional — skip if using Gemini only)
+#
+# Usage:
+#   docker-compose up --build              # Start everything
+#   docker-compose up java-backend         # Start only the Java AST service
+#   docker-compose up node-backend         # Start only the Node ML backend
+#   docker-compose up --build frontend     # Start only the frontend
+#
+# Build the Java image separately (uses Maven Buildpacks, not Dockerfile):
+#   cd java-backend && mvnw.cmd spring-boot:build-image
+#
+
+version: "3.9"
+
+services:
+
+  # ─── 0. PostgreSQL Database ───────────────────────────────────────────────
+  # Single database instance shared by the Java persistence layer.
+  db:
+    image: postgres:16-alpine
+    container_name: devclash-postgres
+    environment:
+      POSTGRES_DB:       devclash
+      POSTGRES_USER:     devclash
+      POSTGRES_PASSWORD: devclash
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devclash -d devclash"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── 1. Java AST Backend ──────────────────────────────────────────────────
+  # Image is built by the Spring Boot Maven plugin — NO Dockerfile needed.
+  # Run this ONCE before `docker-compose up`:
+  #   cd java-backend
+  #   mvnw.cmd spring-boot:build-image     (Windows)
+  #   ./mvnw spring-boot:build-image       (Mac / Linux)
+  # Maven + Cloud Native Buildpacks will produce: devclash/java-backend:latest
+  java-backend:
+    image: devclash/java-backend:latest
+    container_name: devclash-java-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - REPO_STORAGE_PATH=/tmp/repos
+      # PostgreSQL connection — uses the `db` service name inside Docker network
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/devclash
+      - SPRING_DATASOURCE_USERNAME=devclash
+      - SPRING_DATASOURCE_PASSWORD=devclash
+    volumes:
+      - java_repos:/tmp/repos
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/persist/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ─── 2. Node.js ML Backend ────────────────────────────────────────────────
+  # Built from backend/Dockerfile
+  node-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: devclash/node-backend:latest
+    container_name: devclash-node-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      # Java backend URL inside Docker network (use service name, not localhost)
+      - JAVA_BACKEND_URL=http://java-backend:8080
+      - JAVA_BACKEND_PORT=8080
+      # Ollama URL inside Docker network
+      - OLLAMA_HOST=http://ollama:11434
+      # Optional: set your Gemini API key here for cloud-speed scanning
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      # Persist the .dev-clash analysis cache across restarts
+      - node_cache:/app/.dev-clash
+    depends_on:
+      java-backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ─── 3. Vite React Frontend ───────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend_merged
+      dockerfile: Dockerfile
+    image: devclash/frontend:latest
+    container_name: devclash-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      # Passed to Vite at build time so the frontend knows where the backend is
+      - VITE_API_URL=http://localhost:3001
+    depends_on:
+      - node-backend
+    restart: unless-stopped
+
+  # ─── 4. Ollama (Local LLM Server) ─────────────────────────────────────────
+  # Optional: remove this service if you are using Gemini API exclusively.
+  # After first run, models are cached in the `ollama_data` volume.
+  #
+  # To pre-pull models, run once:
+  #   docker exec devclash-ollama ollama pull qwen2.5-coder:3b
+  #   docker exec devclash-ollama ollama pull nomic-embed-text
+  ollama:
+    image: ollama/ollama:latest
+    container_name: devclash-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      # Cache downloaded model weights so they survive container restarts
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # Uncomment the next 3 lines if you have an NVIDIA GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+# ─── Named Volumes ────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  java_repos:
+    driver: local
+  node_cache:
+    driver: local
+  ollama_data:
+    driver: local

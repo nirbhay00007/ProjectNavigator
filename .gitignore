@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+dist/
+build/
+.dev-clash/
+**/repos/
+**/target/
+**/node_modules/
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/wrapper/maven-wrapper.jar
+
+# Environment / Secrets
+.env
+.env.local
+.env.*.local
+
+# Java backend secrets — NEVER commit the real application.properties
+java-backend/src/main/resources/application.properties
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project Specific
+logs/
+*.log
