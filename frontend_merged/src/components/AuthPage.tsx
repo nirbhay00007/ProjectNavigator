@@ -23,7 +23,8 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
 
   const handleLogin = (provider: 'google' | 'github') => {
     // Redirect to Spring Boot OAuth2 endpoint
-    window.location.href = `http://localhost:8080/oauth2/authorization/${provider}`;
+    const javaBackendUrl = import.meta.env.VITE_JAVA_BACKEND_URL || 'http://localhost:8080';
+    window.location.href = `${javaBackendUrl}/oauth2/authorization/${provider}`;
   };
 
   return (

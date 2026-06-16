@@ -80,7 +80,8 @@ export default function App() {
   const handleLogout = useCallback(async () => {
     if (token) {
       try {
-        await fetch('http://localhost:8080/persist/logout', {
+        const javaBackendUrl = import.meta.env.VITE_JAVA_BACKEND_URL || 'http://localhost:8080';
+        await fetch(`${javaBackendUrl}/persist/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
