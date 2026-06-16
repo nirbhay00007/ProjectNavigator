@@ -77,7 +77,7 @@ export default function SetupPage() {
   const checkOllama = async () => {
     setChecking(true);
     try {
-      const r = await fetch('http://localhost:11434/api/tags');
+      const r = await fetch('http://127.0.0.1:11434/api/tags');
       const j = await r.json();
       const names: string[] = (j.models ?? []).map((m: { name: string }) => m.name);
       setOllamaOk(true);

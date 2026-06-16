@@ -226,7 +226,7 @@ export default function App() {
         const j = await r.json();
         setSys(s => ({ ...s, node: { ok: j?.nodeBackend?.status === 'ok', latency: Date.now() - t0 }, java: { ok: j?.javaBackend?.status === 'ok' } }));
       } catch { setSys(s => ({ ...s, node: { ok: false }, java: { ok: false } })); }
-      try { await fetch('http://localhost:11434/api/tags'); setSys(s => ({ ...s, ollama: { ok: true } })); }
+      try { await fetch('http://127.0.0.1:11434/api/tags'); setSys(s => ({ ...s, ollama: { ok: true } })); }
       catch { setSys(s => ({ ...s, ollama: { ok: false } })); }
     };
     poll();

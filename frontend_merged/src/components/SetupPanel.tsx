@@ -86,7 +86,7 @@ export default function SetupPanel() {
   const checkOllama = async () => {
     setChecking(true);
     try {
-      const res  = await fetch('http://localhost:11434/api/tags');
+      const res  = await fetch('http://127.0.0.1:11434/api/tags');
       const json = await res.json();
       const names: string[] = (json.models ?? []).map((m: { name: string }) => m.name);
       setOllamaOk(true);
