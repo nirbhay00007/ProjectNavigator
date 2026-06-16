@@ -47,10 +47,11 @@ async function isOllamaAlive(): Promise<boolean> {
 app.get('/api/status', async (_req, res) => {
     const javaAlive = await isJavaBackendAlive();
     const ollamaAlive = await isOllamaAlive();
+    const geminiActive = !!(process.env.GEMINI_API_KEY);
     res.json({
-        nodeBackend:  { status: 'ok',                    port: process.env.PORT ?? 3001 },
+        nodeBackend:  { status: 'ok',                        port: process.env.PORT ?? 3001 },
         javaBackend:  { status: javaAlive ? 'ok' : 'offline', url: process.env.JAVA_BACKEND_URL ?? `http://${process.env.JAVA_BACKEND_HOST ?? 'localhost'}:${process.env.JAVA_BACKEND_PORT ?? 8080}` },
-        ollama:       { status: ollamaAlive ? 'ok' : 'offline' },
+        ollama:       { status: ollamaAlive ? 'ok' : (geminiActive ? 'gemini' : 'offline') },
         pipelineRunning: isPipelineRunning(),
         timestamp: new Date().toISOString(),
     });

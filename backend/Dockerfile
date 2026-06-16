@@ -2,6 +2,8 @@
 # Stage 1: Build (compile TypeScript)
 FROM node:20-alpine AS builder
 WORKDIR /app
+# Install git so the pipeline can clone GitHub repositories
+RUN apk add --no-cache git
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 COPY . .
@@ -11,6 +13,9 @@ COPY . .
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Install git so the pipeline can clone GitHub repositories at runtime
+RUN apk add --no-cache git
 
 COPY package*.json ./
 RUN npm install --omit=dev --legacy-peer-deps

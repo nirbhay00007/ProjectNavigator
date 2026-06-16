@@ -56,7 +56,7 @@ function makeRepo(path: string): RepoEntry {
 
 // ─── Svc status ───────────────────────────────────────────────────────────────
 
-interface SvcStatus { ok: boolean; latency?: number; }
+interface SvcStatus { ok: boolean; latency?: number; gemini?: boolean; }
 interface SysStatus { node: SvcStatus; java: SvcStatus; ollama: SvcStatus; }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -224,10 +224,11 @@ export default function App() {
         if (token) headers['Authorization'] = `Bearer ${token}`;
         const r = await fetch(`${API}/api/status`, { headers });
         const j = await r.json();
+        const ollamaStatus = j?.ollama?.status;
         setSys({
-          node: { ok: j?.nodeBackend?.status === 'ok', latency: Date.now() - t0 },
-          java: { ok: j?.javaBackend?.status === 'ok' },
-          ollama: { ok: j?.ollama?.status === 'ok' }
+          node:   { ok: j?.nodeBackend?.status === 'ok', latency: Date.now() - t0 },
+          java:   { ok: j?.javaBackend?.status === 'ok' },
+          ollama: { ok: ollamaStatus === 'ok', gemini: ollamaStatus === 'gemini' }
         });
       } catch {
         setSys({
@@ -430,15 +431,22 @@ export default function App() {
           </button>
           <div style={{ width: 1, height: 16, background: 'var(--gray-200)', margin: '0 8px' }} />
           {[
-            { label: 'API',      ok: sys.node.ok,   lat: sys.node.latency },
-            { label: 'Java AST', ok: sys.java.ok,   lat: undefined },
-            { label: 'Ollama',   ok: sys.ollama.ok, lat: undefined },
+            { label: 'API',      ok: sys.node.ok,   lat: sys.node.latency,  gemini: false },
+            { label: 'Java AST', ok: sys.java.ok,   lat: undefined,         gemini: false },
+            { label: 'Ollama',   ok: sys.ollama.ok, lat: undefined,         gemini: !!sys.ollama.gemini },
           ].map(s => (
-            <div key={s.label} className={`status-pill ${s.ok ? 'ok' : 'error'}`}>
-              <span className={`status-dot ${s.ok ? 'ok' : 'error'}`} />
-              {s.label}
-              {s.ok && s.lat ? <span style={{ fontSize: 10, opacity: 0.7 }}>{s.lat}ms</span> : null}
-            </div>
+            s.gemini ? (
+              <div key={s.label} className="status-pill ok" style={{ background: '#eff6ff', borderColor: '#3b82f6', color: '#1d4ed8' }}>
+                <span className="status-dot ok" style={{ background: '#3b82f6' }} />
+                ☁️ Gemini
+              </div>
+            ) : (
+              <div key={s.label} className={`status-pill ${s.ok ? 'ok' : 'error'}`}>
+                <span className={`status-dot ${s.ok ? 'ok' : 'error'}`} />
+                {s.label}
+                {s.ok && s.lat ? <span style={{ fontSize: 10, opacity: 0.7 }}>{s.lat}ms</span> : null}
+              </div>
+            )
           ))}
           {repos.length > 0 && (
             <button className="btn btn-orange btn-sm" onClick={runAll} disabled={repos.every(r => r.status === 'running')}>
