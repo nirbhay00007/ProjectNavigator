@@ -43,7 +43,7 @@ export interface FileSummary {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getModel(apiKey?: string, modelName: string = 'gemini-3-flash-preview') {
+function getModel(apiKey?: string, modelName: string = 'gemini-2.0-flash') {
     const key = apiKey || process.env.GEMINI_API_KEY;
     if (!key) {
         throw new Error('Missing GEMINI_API_KEY environment variable. Please provide an API key.');
@@ -55,7 +55,7 @@ function getModel(apiKey?: string, modelName: string = 'gemini-3-flash-preview')
     );
 }
 
-function getJsonModel(apiKey?: string, modelName: string = 'gemini-3-flash-preview') {
+function getJsonModel(apiKey?: string, modelName: string = 'gemini-2.0-flash') {
     const key = apiKey || process.env.GEMINI_API_KEY;
     if (!key) {
         throw new Error('Missing GEMINI_API_KEY environment variable. Please provide an API key.');
@@ -97,7 +97,7 @@ export async function geminiEmbed(text: string, apiKey?: string): Promise<number
     if (!key) throw new Error('Missing GEMINI_API_KEY');
     const genAI = new GoogleGenerativeAI(key);
     const model = genAI.getGenerativeModel(
-        { model: "gemini-embedding-2-preview" },
+        { model: "text-embedding-004" },
         { apiVersion: 'v1beta' }
     );
     
